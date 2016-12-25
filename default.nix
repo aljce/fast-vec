@@ -4,12 +4,14 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, stdenv }:
+  fast-nats = haskellPackages.callPackage ../fast-nats { };
+
+  f = { mkDerivation, base, fast-nats, stdenv, vector }:
       mkDerivation {
         pname = "fast-vec";
         version = "0.1.0.0";
         src = ./.;
-        libraryHaskellDepends = [ base ];
+        libraryHaskellDepends = [ base fast-nats vector ];
         description = "Length indexed vectors with identical performance to vector";
         license = stdenv.lib.licenses.mit;
       };
@@ -18,7 +20,7 @@ let
                        then pkgs.haskellPackages
                        else pkgs.haskell.packages.${compiler};
 
-  drv = haskellPackages.callPackage f {};
+  drv = haskellPackages.callPackage f { inherit fast-nats; };
 
 in
 

@@ -13,9 +13,11 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.Vector.Generic.Sized
-  -- other-modules:       
-  -- other-extensions:    
+  exposed-modules:     Data.Sigma
+                     , Data.Vector.Generic.Internal.Sized
+                     , Data.Vector.Generic.Sized
+                     , Data.Vector.Internal.Sized
+                     , Data.Vector.Sized
   build-depends:       base >=4.9 && <4.10
                      , fast-nats >= 0.1 && < 0.2
                      , vector > 0.11 && < 0.12

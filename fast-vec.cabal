@@ -16,7 +16,8 @@ library
   exposed-modules:     Data.Sigma
                      , Data.Vector.Generic.Internal.Sized
                      , Data.Vector.Generic.Sized
-                     , Data.Vector.Internal.Sized
+                     , Data.Vector.Unboxed.Instances
+                     , Data.Vector.Unboxed.Sized
                      , Data.Vector.Sized
   build-depends:       base >=4.9 && <4.10
                      , fast-nats >= 0.1 && < 0.2

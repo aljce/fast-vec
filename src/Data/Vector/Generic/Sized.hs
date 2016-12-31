@@ -11,12 +11,14 @@ module Data.Vector.Generic.Sized where
 
 import Prelude (Maybe(..),otherwise,Functor(..),
                 Monad,Num(..),(.),id,Int,Eq(..),
-                Bool,Ord(..),Ordering)
+                Bool,Ord(..),Ordering,Show(..),ShowS)
 import Data.Vector.Generic (Vector)
 import qualified Data.Vector.Generic as G
+import qualified Data.Vector.Fusion.Bundle as B
 
 import Data.Sigma (Sigma(..))
 import Data.Vector.Generic.Internal.Sized (Vec(..))
+import Data.Bifunctor (bimap)
 
 import Data.Nat.Internal
 import Data.Nat
@@ -31,9 +33,6 @@ fins = G.map Fin
 unFins :: (Vector v (Fin n), Vector v Int) => v (Fin n) -> v Int
 {-# INLINE unFins #-}
 unFins = G.map (\(Fin x) -> x)
-
-withLen :: (Vector v a) => v a -> Sigma (Vec v a)
-withLen v = Sigma (\p -> p (SNat (G.length v)) (Vec v))
 
 length :: (Vector v a) => Vec v a n -> SNat n
 {-# INLINE length #-}
@@ -82,8 +81,8 @@ tail :: (Vector v a) => Vec v a ('S s) -> Vec v a n
 {-# INLINE tail #-}
 tail (Vec v) = Vec (G.unsafeTail v)
 
--- take :: (Vector v a, IsNat i) => Vec v a (i + n) -> Vec v a i
--- take (SNat amount) (Vec v) = Vec (G.unsafeTake amount v)
+take :: (Vector v a) => SNat i -> Vec v a j -> Vec v a (Min i j)
+take (SNat amount) (Vec v) = Vec (G.unsafeTake amount v)
 
 drop :: (Vector v a) => SNat i -> Vec v a (i + n) -> Vec v a n
 {-# INLINE drop #-}
@@ -147,7 +146,16 @@ iterate' f x = iterate witness f x
 
 -- create
 
--- unfoldr
+unfoldr :: (Vector v a) => (b -> Maybe (a,b)) -> b -> Sigma (Vec v a)
+{-# INLINE unfoldr #-}
+unfoldr f x = fromVector (G.unfoldr f x)
+
+unfoldrN :: (Vector v a) => SNat n -> (b -> Maybe (a,b)) -> b -> Maybe (Vec v a n)
+{-# INLINE unfoldrN #-}
+unfoldrN (SNat amount) f x
+  | amount == G.length result = Just (Vec result)
+  | otherwise = Nothing
+  where result = G.unfoldrN amount f x
 
 construct :: (Vector v a) => SNat n -> (forall m. Vec v a m-> a) -> Vec v a n
 {-# INLINE construct #-}
@@ -156,6 +164,14 @@ construct (SNat amount) f = Vec (G.constructN amount (f . Vec))
 construct' :: (Vector v a, IsNat n) => (forall m. Vec v a m -> a) -> Vec v a n
 {-# INLINE construct' #-}
 construct' f = construct witness f
+
+constructr :: (Vector v a) => SNat n -> (forall m. Vec v a m -> a) -> Vec v a n
+{-# INLINE constructr #-}
+constructr (SNat amount) f = Vec (G.constructrN amount (f . Vec))
+
+constructr' :: (Vector v a, IsNat n) => (forall m. Vec v a m -> a) -> Vec v a n
+{-# INLINE constructr' #-}
+constructr' f = constructr witness f
 
 enumFromN :: (Vector v a, Num a) => a -> SNat n -> Vec v a n
 {-# INLINE enumFromN #-}
@@ -173,10 +189,6 @@ enumFromStepN' :: (Vector v a, IsNat n, Num a) => a -> a -> Vec v a n
 {-# INLINE enumFromStepN' #-}
 enumFromStepN' x y = enumFromStepN x y witness
 
--- enumFromTo but do we really want this slow function?
-
--- enumFromThenTo but do we really want this slow function?
-
 cons :: (Vector v a) => a -> Vec v a n -> Vec v a ('S n)
 {-# INLINE cons #-}
 cons x (Vec v) = Vec (G.cons x v)
@@ -190,8 +202,9 @@ infixr 5 ++
 {-# INLINE (++) #-}
 (Vec v) ++ (Vec w) = Vec (v G.++ w)
 
--- concat :: Vec n v (Vec m v a) -> Vec (n * m) v a
--- concat (Vec vss) = concatMap id vss
+concat :: (Vector v (Vec v a m), Vector v a) => Vec v (Vec v a m) n -> Vec v a (n * m)
+{-# INLINE concat #-}
+concat (Vec vs) = Vec (G.foldr (\(Vec v) ac -> v G.++ ac) G.empty vs)
 
 force :: (Vector v a) => Vec v a n -> Vec v a n
 {-# INLINE force #-}
@@ -240,6 +253,10 @@ indexed :: forall n v a. (Vector v a, Vector v (Int, a)) =>
   Vec v a n -> Vec v (Fin n, a) n
 {-# INLINE indexed #-}
 indexed (Vec v) = Vec (unsafeCoerce (G.indexed v) :: v (Fin n,a))
+
+diagonal :: (Vector v (Vec v a n), Vector v (Fin n), Vector v a, IsNat n) => Vec v (Vec v a n) n -> Vec v a n
+{-# INLINE diagonal #-}
+diagonal v = zipWith (!) v allFin'
 
 map :: (Vector v a, Vector v b) => (a -> b) -> Vec v a n -> Vec v b n
 {-# INLINE map #-}
@@ -388,16 +405,42 @@ unzip6 :: (Vector v a, Vector v b, Vector v c, Vector v d, Vector v e, Vector v 
 unzip6 (Vec vs) = (Vec as, Vec bs, Vec cs, Vec ds, Vec es, Vec fs)
   where (as, bs, cs, ds, es, fs) = G.unzip6 vs
 
--- filter
--- ifilter
--- filterM
--- takeWhile
--- dropWhile
+filter :: (Vector v a) => (a -> Bool) -> Vec v a n -> Sigma (Vec v a)
+{-# INLINE filter #-}
+filter f (Vec v) = fromVector (G.filter f v)
 
--- partition
--- unstablePartition
--- span
--- break
+ifilter :: (Vector v a) => (Fin n -> a -> Bool) -> Vec v a n -> Sigma (Vec v a)
+{-# INLINE ifilter #-}
+ifilter f (Vec v) = fromVector (G.ifilter (coerce f) v)
+
+filterM :: (Vector v a, Monad m) => (a -> m Bool) -> Vec v a n -> m (Sigma (Vec v a))
+{-# INLINE filterM #-}
+filterM f (Vec v) = fmap fromVector (G.filterM f v)
+
+takeWhile :: (Vector v a) => (a -> Bool) -> Vec v a n -> Sigma (Vec v a)
+{-# INLINE takeWhile #-}
+takeWhile f (Vec v) = fromVector (G.takeWhile f v)
+
+dropWhile :: (Vector v a) => (a -> Bool) -> Vec v a n -> Sigma (Vec v a)
+{-# INLINE dropWhile #-}
+dropWhile f (Vec v) = fromVector (G.dropWhile f v)
+
+-- TODO: the post condition on partition is that xs + ys = zs
+partition :: (Vector v a) => (a -> Bool) -> Vec v a n -> (Sigma (Vec v a), Sigma (Vec v a))
+{-# INLINE partition #-}
+partition f (Vec v) = bimap fromVector fromVector (G.partition f v)
+
+unstablePartition :: (Vector v a) => (a -> Bool) -> Vec v a n -> (Sigma (Vec v a), Sigma (Vec v a))
+{-# INLINE unstablePartition #-}
+unstablePartition f (Vec v) = bimap fromVector fromVector (G.unstablePartition f v)
+
+span :: (Vector v a) => (a -> Bool) -> Vec v a n -> (Sigma (Vec v a), Sigma (Vec v a))
+{-# INLINE span #-}
+span f (Vec v) = bimap fromVector fromVector (G.span f v)
+
+break :: (Vector v a) => (a -> Bool) -> Vec v a n -> (Sigma (Vec v a), Sigma (Vec v a))
+{-# INLINE break #-}
+break f (Vec v) = bimap fromVector fromVector (G.break f v)
 
 infix 4 `elem`
 elem :: (Vector v a, Eq a) => a -> Vec v a n -> Bool
@@ -419,14 +462,15 @@ findIndex f (Vec v) = coerce (G.findIndex f v)
 findIndices :: forall n v a. (Vector v a, Vector v Int, Vector v (Fin n))
   => (a -> Bool) -> Vec v a n -> Sigma (Vec v (Fin n))
 {-# INLINE findIndices #-}
-findIndices f (Vec v) = withLen (fins (G.findIndices f v))
+findIndices f (Vec v) = fromVector (fins (G.findIndices f v))
 
 elemIndex :: (Vector v a, Eq a) => a -> Vec v a n -> Maybe (Fin n)
 {-# INLINE elemIndex #-}
 elemIndex x (Vec v) = coerce (G.elemIndex x v)
 
 elemIndices :: (Vector v a, Vector v Int, Vector v (Fin n), Eq a) => a -> Vec v a n -> Sigma (Vec v (Fin n))
-elemIndices x (Vec v) = withLen (fins (G.elemIndices x v))
+{-# INLINE elemIndices #-}
+elemIndices x (Vec v) = fromVector (fins (G.elemIndices x v))
 
 foldl :: (Vector v b) => (a -> b -> a) -> a -> Vec v b n -> a
 {-# INLINE foldl #-}
@@ -444,11 +488,11 @@ foldl1' :: (Vector v a) => (a -> a -> a) -> Vec v a ('S n) -> a
 {-# INLINE foldl1' #-}
 foldl1' f (Vec v) = G.foldl1' f v
 
-foldlD :: (Vector v b) => (a m -> b -> a ('S m)) -> a 'Z -> Vec v b n -> a n
+foldlD :: (Vector v b) => (a l -> b -> a ('S l)) -> a 'Z -> Vec v b n -> a n
 {-# INLINE foldlD #-}
 foldlD f x (Vec v) = G.foldl (unsafeCoerce f) (unsafeCoerce x) v
 
-foldlD' :: (Vector v b) => (a m -> b -> a ('S m)) -> a 'Z -> Vec v b n -> a n
+foldlD' :: (Vector v b) => (a l -> b -> a ('S l)) -> a 'Z -> Vec v b n -> a n
 {-# INLINE foldlD' #-}
 foldlD' f x (Vec v) = G.foldl' (unsafeCoerce f) (unsafeCoerce x) v
 
@@ -468,11 +512,11 @@ foldr1' :: (Vector v a) => (a -> a -> a) -> Vec v a ('S n) -> a
 {-# INLINE foldr1' #-}
 foldr1' f (Vec v) = G.foldr1' f v
 
-foldrD :: (Vector v a) => (a -> b m -> b ('S n)) -> b 'Z -> Vec v a n -> b n
+foldrD :: (Vector v a) => (a -> b l -> b ('S l)) -> b 'Z -> Vec v a n -> b n
 {-# INLINE foldrD #-}
 foldrD f x (Vec v) = G.foldr (unsafeCoerce f) (unsafeCoerce x) v
 
-foldrD' :: (Vector v a) => (a -> b m -> b ('S n)) -> b 'Z -> Vec v a n -> b n
+foldrD' :: (Vector v a) => (a -> b l -> b ('S l)) -> b 'Z -> Vec v a n -> b n
 {-# INLINE foldrD' #-}
 foldrD' f x (Vec v) = G.foldr' (unsafeCoerce f) (unsafeCoerce x) v
 
@@ -484,11 +528,11 @@ ifoldl' :: (Vector v b) => (a -> Fin n -> b -> a) -> a -> Vec v b n -> a
 {-# INLINE ifoldl' #-}
 ifoldl' f x (Vec v) = G.ifoldl' (coerce f) x v
 
-ifoldlD :: (Vector v b) => (a m -> Fin n -> b -> a ('S m)) -> a 'Z -> Vec v b n -> a n
+ifoldlD :: (Vector v b) => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec v b n -> a n
 {-# INLINE ifoldlD #-}
 ifoldlD f x (Vec v) = G.ifoldl (unsafeCoerce f) (unsafeCoerce x) v
 
-ifoldlD' :: (Vector v b) => (a m -> Fin n -> b -> a ('S m)) -> a 'Z -> Vec v b n -> a n
+ifoldlD' :: (Vector v b) => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec v b n -> a n
 {-# INLINE ifoldlD' #-}
 ifoldlD' f x (Vec v) = G.ifoldl' (unsafeCoerce f) (unsafeCoerce x) v
 
@@ -500,11 +544,11 @@ ifoldr' :: (Vector v a) => (Fin n -> a -> b -> b) -> b -> Vec v a n -> b
 {-# INLINE ifoldr' #-}
 ifoldr' f x (Vec v) = G.ifoldr' (coerce f) x v
 
-ifoldrD :: (Vector v a) => (Fin n -> a -> b m -> b ('S n)) -> b 'Z -> Vec v a n -> b n
+ifoldrD :: (Vector v a) => (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec v a n -> b n
 {-# INLINE ifoldrD #-}
 ifoldrD f x (Vec v) = G.ifoldr (unsafeCoerce f) (unsafeCoerce x) v
 
-ifoldrD' :: (Vector v a) => (Fin n -> a -> b m -> b ('S n)) -> b 'Z -> Vec v a n -> b n
+ifoldrD' :: (Vector v a) => (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec v a n -> b n
 {-# INLINE ifoldrD' #-}
 ifoldrD' f x (Vec v) = G.ifoldr' (unsafeCoerce f) (unsafeCoerce x) v
 
@@ -564,14 +608,148 @@ maxIndexBy :: (Vector v a) => (a -> a -> Ordering) -> Vec v a ('S n) -> Fin ('S 
 {-# INLINE maxIndexBy #-}
 maxIndexBy c (Vec v) = Fin (G.maxIndexBy c v)
 
+foldM :: (Vector v b, Monad m) => (a -> b -> m a) -> a -> Vec v b n -> m a
+{-# INLINE foldM #-}
+foldM f x (Vec v) = G.foldM f x v
+
+foldM' :: (Vector v b, Monad m) => (a -> b -> m a) -> a -> Vec v b n -> m a
+{-# INLINE foldM' #-}
+foldM' f x (Vec v) = G.foldM' f x v
+
+ifoldM :: (Vector v b, Monad m) => (a -> Fin n -> b -> m a) -> a -> Vec v b n -> m a
+{-# INLINE ifoldM #-}
+ifoldM f x (Vec v) = G.ifoldM (coerce f) x v
+
+ifoldM' :: (Vector v b, Monad m) => (a -> Fin n -> b -> m a) -> a -> Vec v b n -> m a
+{-# INLINE ifoldM' #-}
+ifoldM' f x (Vec v) = G.ifoldM' (coerce f) x v
+
+fold1M :: (Vector v a, Monad m) => (a -> a -> m a) -> Vec v a ('S n) -> m a
+{-# INLINE fold1M #-}
+fold1M f (Vec v) = G.fold1M f v
+
+fold1M' :: (Vector v a, Monad m) => (a -> a -> m a) -> Vec v a ('S n) -> m a
+{-# INLINE fold1M' #-}
+fold1M' f (Vec v) = G.fold1M' f v
+
+foldM_ :: (Vector v b, Monad m) => (a -> b -> m a) -> a -> Vec v b n -> m ()
+{-# INLINE foldM_ #-}
+foldM_ f x (Vec v) = G.foldM_ f x v
+
+foldM'_ :: (Vector v b, Monad m) => (a -> b -> m a) -> a -> Vec v b n -> m ()
+{-# INLINE foldM'_ #-}
+foldM'_ f x (Vec v) = G.foldM'_ f x v
+
+ifoldM_ :: (Vector v b, Monad m) => (a -> Fin n -> b -> m a) -> a -> Vec v b n -> m ()
+{-# INLINE ifoldM_ #-}
+ifoldM_ f x (Vec v) = G.ifoldM_ (coerce f) x v
+
+ifoldM'_ :: (Vector v b, Monad m) => (a -> Fin n -> b -> m a) -> a -> Vec v b n -> m ()
+{-# INLINE ifoldM'_ #-}
+ifoldM'_ f x (Vec v) = G.ifoldM'_ (coerce f) x v
+
+fold1M_ :: (Vector v a, Monad m) => (a -> a -> m a) -> Vec v a ('S n) -> m ()
+{-# INLINE fold1M_ #-}
+fold1M_ f (Vec v) = G.fold1M_ f v
+
+foldMD :: (Vector v b, Monad m) => (a l -> b -> a ('S l)) -> a 'Z -> Vec v b n -> m (a n)
+{-# INLINE foldMD #-}
+foldMD f x (Vec v) = G.foldM (unsafeCoerce f) (unsafeCoerce x) v
+
+foldMD' :: (Vector v b, Monad m) => (a l -> b -> a ('S l)) -> a 'Z -> Vec v b n -> m (a n)
+{-# INLINE foldMD' #-}
+foldMD' f x (Vec v) = G.foldM' (unsafeCoerce f) (unsafeCoerce x) v
+
+ifoldMD :: (Vector v b, Monad m) => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec v b n -> m (a n)
+{-# INLINE ifoldMD #-}
+ifoldMD f x (Vec v) = G.ifoldM (unsafeCoerce f) (unsafeCoerce x) v
+
+ifoldMD' :: (Vector v b, Monad m) => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec v b n -> m (a n)
+{-# INLINE ifoldMD' #-}
+ifoldMD' f x (Vec v) = G.ifoldM' (unsafeCoerce f) (unsafeCoerce x) v
+
+sequence :: (Vector v a, Vector v (m a), Monad m) => Vec v (m a) n -> m (Vec v a n)
+{-# INLINE sequence #-}
+sequence (Vec v) = fmap Vec (G.sequence v)
+
+sequence_ :: (Vector v (m a), Monad m) => Vec v (m a) n -> m ()
+{-# INLINE sequence_ #-}
+sequence_ (Vec v) = G.sequence_ v
+
+prescanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a n
+{-# INLINE prescanl #-}
+prescanl f x (Vec v) = Vec (G.prescanl f x v)
+
+prescanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a n
+{-# INLINE prescanl' #-}
+prescanl' f x (Vec v) = Vec (G.prescanl' f x v)
+
+postscanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a n
+{-# INLINE postscanl #-}
+postscanl f x (Vec v) = Vec (G.postscanl f x v)
+
+postscanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a n
+{-# INLINE postscanl' #-}
+postscanl' f x (Vec v) = Vec (G.postscanl' f x v)
+
+scanl :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a ('S n)
+{-# INLINE scanl #-}
+scanl f x (Vec v) = Vec (G.scanl f x v)
+
+scanl' :: (Vector v a, Vector v b) => (a -> b -> a) -> a -> Vec v b n -> Vec v a ('S n)
+{-# INLINE scanl' #-}
+scanl' f x (Vec v) = Vec (G.scanl' f x v)
+
+scanl1 :: (Vector v a) => (a -> a -> a) -> Vec v a ('S n) -> Vec v a ('S n)
+{-# INLINE scanl1 #-}
+scanl1 f (Vec v) = Vec (G.scanl1 f v)
+
+scanl1' :: (Vector v a) => (a -> a -> a) -> Vec v a ('S n) -> Vec v a ('S n)
+{-# INLINE scanl1' #-}
+scanl1' f (Vec v) = Vec (G.scanl1' f v)
+
+prescanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b n
+{-# INLINE prescanr #-}
+prescanr f x (Vec v) = Vec (G.prescanr f x v)
+
+prescanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b n
+{-# INLINE prescanr' #-}
+prescanr' f x (Vec v) = Vec (G.prescanr' f x v)
+
+postscanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b n
+{-# INLINE postscanr #-}
+postscanr f x (Vec v) = Vec (G.postscanr f x v)
+
+postscanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b n
+{-# INLINE postscanr' #-}
+postscanr' f x (Vec v) = Vec (G.postscanr' f x v)
+
+scanr :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b ('S n)
+{-# INLINE scanr #-}
+scanr f x (Vec v) = Vec (G.scanr f x v)
+
+scanr' :: (Vector v a, Vector v b) => (a -> b -> b) -> b -> Vec v a n -> Vec v b ('S n)
+{-# INLINE scanr' #-}
+scanr' f x (Vec v) = Vec (G.scanr' f x v)
+
+scanr1 :: (Vector v a) => (a -> a -> a) -> Vec v a n -> Vec v a n
+{-# INLINE scanr1 #-}
+scanr1 f (Vec v) = Vec (G.scanr1 f v)
+
+scanr1' :: (Vector v a) => (a -> a -> a) -> Vec v a n -> Vec v a n
+{-# INLINE scanr1' #-}
+scanr1' f (Vec v) = Vec (G.scanr1' f v)
+
 toList :: (Vector v a) => Vec v a n -> [a]
+{-# INLINE toList #-}
 toList (Vec v) = G.toList v
 
--- fromList :: (Vector v a) => [a] -> Sigma v a
--- fromList list = Sigma (\p -> p (SNat (G.length result)) result)
---   where result = G.fromList list
+fromList :: (Vector v a) => [a] -> Sigma (Vec v a)
+{-# INLINE fromList #-}
+fromList list = fromVector (G.fromList list)
 
 fromListN :: (Vector v a) => SNat n -> [a] -> Maybe (Vec v a n)
+{-# INLINE fromListN #-}
 fromListN (SNat len) list = fmap (Vec . G.fromList) (parseList 0 list)
   where parseList amount []
           | len <= amount = Just []
@@ -579,3 +757,57 @@ fromListN (SNat len) list = fmap (Vec . G.fromList) (parseList 0 list)
         parseList amount (x:xs)
           | len <= amount = Just []
           | otherwise     = fmap (x:) (parseList (amount + 1) xs)
+
+fromListN' :: (Vector v a, IsNat n) => [a] -> Maybe (Vec v a n)
+{-# INLINE fromListN' #-}
+fromListN' list = fromListN witness list
+
+toVector :: Vec v a n -> v a
+{-# INLINE toVector #-}
+toVector (Vec v) = v
+
+fromVector :: (Vector v a) => v a -> Sigma (Vec v a)
+{-# INLINE fromVector #-}
+fromVector v = Sigma (\p -> p (SNat (G.length v)) (Vec v))
+
+fromVectorN :: (Vector v a) => SNat n -> v a -> Maybe (Vec v a n)
+{-# INLINE fromVectorN #-}
+fromVectorN (SNat len) v
+  | len <= G.length v = Just (Vec (G.take len v))
+  | otherwise = Nothing
+
+fromVectorN' :: (Vector v a, IsNat n) => v a -> Maybe (Vec v a n)
+{-# INLINE fromVectorN' #-}
+fromVectorN' v = fromVectorN witness v
+
+convert :: (Vector v a, Vector w a) => Vec v a n -> Vec w a n
+{-# INLINE convert #-}
+convert (Vec v) = Vec (G.convert v)
+
+stream :: (Vector v a) => Vec v a n -> B.Bundle v a
+{-# INLINE stream #-}
+stream (Vec v) = G.stream v
+
+unstream :: (Vector v a) => B.Bundle v a -> Sigma (Vec v a)
+{-# INLINE unstream #-}
+unstream b = fromVector (G.unstream b)
+
+streamR :: (Vector v a) => Vec v a n -> B.Bundle v a
+{-# INLINE streamR #-}
+streamR (Vec v) = G.streamR v
+
+unstreamR :: (Vector v a) => B.Bundle v a -> Sigma (Vec v a)
+{-# INLINE unstreamR #-}
+unstreamR b = fromVector (G.unstreamR b)
+
+eq :: (Vector v a, Eq a) => Vec v a n -> Vec v a n -> Bool
+{-# INLINE eq #-}
+eq (Vec v) (Vec w) = G.eq v w
+
+cmp :: (Vector v a, Ord a) => Vec v a n -> Vec v a n -> Ordering
+{-# INLINE cmp #-}
+cmp (Vec v) (Vec w) = G.cmp v w
+
+showsPrec :: (Vector v a, Show a) => Int -> Vec v a n -> ShowS
+{-# INLINE showsPrec #-}
+showsPrec p (Vec v) = G.showsPrec p v

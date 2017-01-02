@@ -12,7 +12,7 @@ import Data.Vector.Generic.Mutable (MVector)
 import qualified Data.Vector.Generic.Mutable as M
 import Control.Monad.Primitive (PrimMonad(..))
 
-import Data.Nat.Internal (SNat(..))
+import Data.Nat.Internal (SNat(..),Fin(..))
 import Data.Nat (Nat(..),IsNat(..),Dec,IsZero,isZero,type (+),type Min)
 
 import Data.Coerce (coerce)
@@ -89,7 +89,38 @@ clear :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> m ()
 {-# INLINE clear #-}
 clear (MVec vs) = M.clear vs
 
+read :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> Fin n -> m a
+{-# INLINE read #-}
+read (MVec vs) (Fin i) = M.unsafeRead vs i
 
+write :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> Fin n -> a -> m ()
+{-# INLINE write #-}
+write (MVec vs) (Fin i) x = M.unsafeWrite vs i x
 
+modify :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> (a -> a) -> Fin n -> m ()
+{-# INLINE modify #-}
+modify (MVec vs) f (Fin i) = M.unsafeModify vs f i
 
+swap :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> Fin n -> Fin n -> m ()
+{-# INLINE swap #-}
+swap (MVec vs) (Fin x) (Fin y) = M.unsafeSwap vs x y
 
+exchange :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> Fin n -> a -> m a
+{-# INLINE exchange #-}
+exchange (MVec vs) (Fin i) x = M.unsafeExchange vs i x
+
+set :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> a -> m ()
+{-# INLINE set #-}
+set (MVec vs) x = M.set vs x
+
+copy :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> MVec v (PrimState m) a n -> m ()
+{-# INLINE copy #-}
+copy (MVec vs) (MVec ws) = M.copy vs ws
+
+unsafeCopy :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> MVec v (PrimState m) a n -> m ()
+{-# INLINE unsafeCopy #-}
+unsafeCopy (MVec vs) (MVec ws) = M.unsafeCopy vs ws
+
+move :: (MVector v a, PrimMonad m) => MVec v (PrimState m) a n -> MVec v (PrimState m) a n -> m ()
+{-# INLINE move #-}
+move (MVec vs) (MVec ws) = M.unsafeMove vs ws

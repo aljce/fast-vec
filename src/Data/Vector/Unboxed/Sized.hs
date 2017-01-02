@@ -4,12 +4,11 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
 
--- {-# OPTIONS_GHC -Wall -Werror #-}
+{-# OPTIONS_GHC -Wall -Werror #-}
 module Data.Vector.Unboxed.Sized where
 
 import Prelude (Maybe(..),Monad,Num(..),(.),
-                Eq(..),Show(..),Monoid(..),Ord(..),
-                Ordering,Bool)
+                Eq(..),Ord(..),Ordering,Bool)
 
 import Data.Vector.Unboxed (Unbox)
 import Data.Vector.Unboxed.Instances ()
@@ -278,7 +277,7 @@ forM :: (Unbox a, Unbox b, Monad m) => Vec a n -> (a -> m b) -> m (Vec b n)
 {-# INLINE forM #-}
 forM (Vec v) f = tightenMonad (G.mapM f v)
 
-forM_ :: (Unbox a, Unbox b, Monad m) => Vec a n -> (a -> m b) -> m ()
+forM_ :: (Unbox a, Monad m) => Vec a n -> (a -> m b) -> m ()
 {-# INLINE forM_ #-}
 forM_ (Vec v) f = G.mapM_ f v
 

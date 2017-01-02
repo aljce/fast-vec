@@ -64,24 +64,24 @@ tightenMonad :: m (G.Vec V.Vector a n) -> m (Vec a n)
 {-# INLINE tightenMonad #-}
 tightenMonad = unsafeCoerce
 
-length :: () => Vec a n -> SNat n
+length :: Vec a n -> SNat n
 {-# INLINE length #-}
 length (Vec v) = G.length v
 
-null :: () => Vec a n -> Maybe (IsZero n)
+null :: Vec a n -> Maybe (IsZero n)
 {-# INLINE null #-}
 null (Vec v) = G.null v
 
 infixr 9 !
-(!) :: () => Vec a n -> Fin n -> a
+(!) :: Vec a n -> Fin n -> a
 {-# INLINE (!) #-}
 (Vec v) ! i = v G.! i
 
-head :: () => Vec a ('S n) -> a
+head :: Vec a ('S n) -> a
 {-# INLINE head #-}
 head (Vec v) = G.head v
 
-last :: () => Vec a ('S n) -> a
+last :: Vec a ('S n) -> a
 {-# INLINE last #-}
 last (Vec v) = G.last v
 
@@ -97,31 +97,31 @@ lastM :: (Monad m) => Vec a ('S n) -> m a
 {-# INLINE lastM #-}
 lastM (Vec v) = G.lastM v
 
-slice :: () => SNat i -> Vec a (i + n) -> Vec a n
+slice :: SNat i -> Vec a (i + n) -> Vec a n
 {-# INLINE slice #-}
 slice start (Vec v) = Vec (G.slice start v)
 
-init :: () => Vec a ('S n) -> Vec a n
+init :: Vec a ('S n) -> Vec a n
 {-# INLINE init #-}
 init (Vec v) = Vec (G.init v)
 
-tail :: () => Vec a ('S s) -> Vec a n
+tail :: Vec a ('S s) -> Vec a n
 {-# INLINE tail #-}
 tail (Vec v) = Vec (G.tail v)
 
-drop :: () => SNat i -> Vec a (i + n) -> Vec a n
+drop :: SNat i -> Vec a (i + n) -> Vec a n
 {-# INLINE drop #-}
 drop amount (Vec v) = Vec (G.drop amount v)
 
-empty :: () => Vec a 'Z
+empty :: Vec a 'Z
 {-# INLINE empty #-}
 empty = Vec G.empty
 
-singleton :: () => a -> Vec a ('S 'Z)
+singleton :: a -> Vec a ('S 'Z)
 {-# INLINE singleton #-}
 singleton x = Vec (G.singleton x)
 
-replicate :: () => SNat n -> a -> Vec a n
+replicate :: SNat n -> a -> Vec a n
 {-# INLINE replicate #-}
 replicate amount x = Vec (G.replicate amount x)
 
@@ -137,7 +137,7 @@ replicateM' :: (Monad m, IsNat n) => m a -> m (Vec a n)
 {-# INLINE replicateM' #-}
 replicateM' x = tightenMonad (G.replicateM' x)
 
-generate :: () => SNat n -> (Fin n -> a) -> Vec a n
+generate :: SNat n -> (Fin n -> a) -> Vec a n
 {-# INLINE generate  #-}
 generate amount f = Vec (G.generate amount f)
 
@@ -153,7 +153,7 @@ generateM' :: (Monad m, IsNat n) => (Fin n -> m a) -> m (Vec a n)
 {-# INLINE generateM' #-}
 generateM' f = tightenMonad (G.generateM' f)
 
-allFin :: () => SNat n -> Vec (Fin n) n
+allFin :: SNat n -> Vec (Fin n) n
 {-# INLINE allFin #-}
 allFin len = Vec (G.allFin len)
 
@@ -161,7 +161,7 @@ allFin' :: (IsNat n) => Vec (Fin n) n
 {-# INLINE allFin' #-}
 allFin' = Vec (G.allFin')
 
-iterate :: () => SNat n -> (a -> a) -> a -> Vec a n
+iterate :: SNat n -> (a -> a) -> a -> Vec a n
 {-# INLINE iterate #-}
 iterate amount f x = Vec (G.iterate amount f x)
 
@@ -171,15 +171,15 @@ iterate' f x = Vec (G.iterate' f x)
 
 -- create
 
-unfoldr :: () => (b -> Maybe (a,b)) -> b -> Sigma (Vec a)
+unfoldr :: (b -> Maybe (a,b)) -> b -> Sigma (Vec a)
 {-# INLINE unfoldr #-}
 unfoldr f x = tightenSigma (G.unfoldr f x)
 
-unfoldrN :: () => SNat n -> (b -> Maybe (a,b)) -> b -> Maybe (Vec a n)
+unfoldrN :: SNat n -> (b -> Maybe (a,b)) -> b -> Maybe (Vec a n)
 {-# INLINE unfoldrN #-}
 unfoldrN amount f x = tightenMaybe (G.unfoldrN amount f x)
 
-construct :: () => SNat n -> (forall m. Vec a m -> a) -> Vec a n
+construct :: SNat n -> (forall m. Vec a m -> a) -> Vec a n
 {-# INLINE construct #-}
 construct amount f = Vec (G.construct amount (f . Vec))
 
@@ -187,7 +187,7 @@ construct' :: (IsNat n) => (forall m. Vec a m -> a) -> Vec a n
 {-# INLINE construct' #-}
 construct' f = Vec (G.construct' (f . Vec))
 
-constructr :: () => SNat n -> (forall m. Vec a m -> a) -> Vec a n
+constructr :: SNat n -> (forall m. Vec a m -> a) -> Vec a n
 {-# INLINE constructr #-}
 constructr amount f = Vec (G.constructr amount (f . Vec))
 
@@ -211,60 +211,60 @@ enumFromStepN' :: (IsNat n, Num a) => a -> a -> Vec a n
 {-# INLINE enumFromStepN' #-}
 enumFromStepN' x y = Vec (G.enumFromStepN' x y)
 
-cons :: () => a -> Vec a n -> Vec a ('S n)
+cons :: a -> Vec a n -> Vec a ('S n)
 {-# INLINE cons #-}
 cons x (Vec v) = Vec (G.cons x v)
 
-snoc :: () => Vec a n -> a -> Vec a ('S n)
+snoc :: Vec a n -> a -> Vec a ('S n)
 {-# INLINE snoc #-}
 snoc (Vec v) x = Vec (G.snoc v x)
 
 infixr 5 ++
-(++) :: () => Vec a n -> Vec a m -> Vec a (n + m)
+(++) :: Vec a n -> Vec a m -> Vec a (n + m)
 {-# INLINE (++) #-}
 (Vec v) ++ (Vec w) = Vec (v G.++ w)
 
-concat :: () => Vec (Vec a m) n -> Vec a (n * m)
+concat :: Vec (Vec a m) n -> Vec a (n * m)
 {-# INLINE concat #-}
 concat (Vec vs) = Vec (G.concat (G.map getVec vs))
 
-force :: () => Vec a n -> Vec a n
+force :: Vec a n -> Vec a n
 {-# INLINE force #-}
 force (Vec v) = Vec (G.force v)
 
-(//) :: () => Vec a n -> [(Fin n, a)] -> Vec a n
+(//) :: Vec a n -> [(Fin n, a)] -> Vec a n
 {-# INLINE (//) #-}
 (Vec v) // us = Vec (v G.// us)
 
-update :: () => Vec a n -> Vec (Fin n, a) m -> Vec a n
+update :: Vec a n -> Vec (Fin n, a) m -> Vec a n
 {-# INLINE update #-}
 update (Vec v) (Vec w) = Vec (G.update v w)
 
-update_ :: () => Vec a n -> Vec (Fin n) m -> Vec a m -> Vec a n
+update_ :: Vec a n -> Vec (Fin n) m -> Vec a m -> Vec a n
 {-# INLINE update_ #-}
 update_ (Vec v) (Vec w) (Vec x) = Vec (G.update_ v w x)
 
-accum :: () => (a -> b -> a) -> Vec a n -> [(Fin n, b)] -> Vec a n
+accum :: (a -> b -> a) -> Vec a n -> [(Fin n, b)] -> Vec a n
 {-# INLINE accum #-}
 accum f (Vec v) us = Vec (G.accum f v us)
 
-accumulate :: () => (a -> b -> a) -> Vec a n -> Vec (Fin n, b) m -> Vec a n
+accumulate :: (a -> b -> a) -> Vec a n -> Vec (Fin n, b) m -> Vec a n
 {-# INLINE accumulate #-}
 accumulate f (Vec v) (Vec w) = Vec (G.accumulate f v w)
 
-accumulate_ :: () => (a -> b -> a) -> Vec a n -> Vec (Fin n) m -> Vec b m -> Vec a n
+accumulate_ :: (a -> b -> a) -> Vec a n -> Vec (Fin n) m -> Vec b m -> Vec a n
 {-# INLINE accumulate_ #-}
 accumulate_ f (Vec v) (Vec w) (Vec x) = Vec (G.accumulate_ f v w x)
 
-reverse :: () => Vec a n -> Vec a n
+reverse :: Vec a n -> Vec a n
 {-# INLINE reverse #-}
 reverse (Vec v) = Vec (G.reverse v)
 
-backpermute :: () => Vec a n -> Vec (Fin n) m -> Vec a m
+backpermute :: Vec a n -> Vec (Fin n) m -> Vec a m
 {-# INLINE backpermute #-}
 backpermute (Vec v) (Vec w) = Vec (G.backpermute v w)
 
-indexed :: () => Vec a n -> Vec (Fin n, a) n
+indexed :: Vec a n -> Vec (Fin n, a) n
 {-# INLINE indexed #-}
 indexed (Vec v) = Vec (G.indexed v)
 
@@ -272,15 +272,15 @@ diagonal :: (IsNat n) => Vec (Vec a n) n -> Vec a n
 {-# INLINE diagonal #-}
 diagonal (Vec v) = Vec (G.diagonal (coerce v))
 
-map :: () => (a -> b) -> Vec a n -> Vec b n
+map :: (a -> b) -> Vec a n -> Vec b n
 {-# INLINE map #-}
 map f (Vec v) = Vec (G.map f v)
 
-imap :: () => (Fin n -> a -> b) -> Vec a n -> Vec b n
+imap :: (Fin n -> a -> b) -> Vec a n -> Vec b n
 {-# INLINE imap #-}
 imap f (Vec v) = Vec (G.imap f v)
 
-concatMap :: () => (a -> Vec b n) -> Vec a m -> Vec b (n * m)
+concatMap :: (a -> Vec b n) -> Vec a m -> Vec b (n * m)
 {-# INLINE concatMap #-}
 concatMap f (Vec v) = Vec (G.concatMap (getVec . f) v)
 
@@ -423,11 +423,11 @@ unzip6 :: () =>
 unzip6 (Vec vs) = (Vec as, Vec bs, Vec cs, Vec ds, Vec es, Vec fs)
   where (as, bs, cs, ds, es, fs) = G.unzip6 vs
 
-filter :: () => (a -> Bool) -> Vec a n -> Sigma (Vec a)
+filter :: (a -> Bool) -> Vec a n -> Sigma (Vec a)
 {-# INLINE filter #-}
 filter f (Vec v) = tightenSigma (G.filter f v)
 
-ifilter :: () => (Fin n -> a -> Bool) -> Vec a n -> Sigma (Vec a)
+ifilter :: (Fin n -> a -> Bool) -> Vec a n -> Sigma (Vec a)
 {-# INLINE ifilter #-}
 ifilter f (Vec v) = tightenSigma (G.ifilter f v)
 
@@ -435,27 +435,27 @@ filterM :: (Monad m) => (a -> m Bool) -> Vec a n -> m (Sigma (Vec a))
 {-# INLINE filterM #-}
 filterM f (Vec v) = tightenSigmaM (G.filterM f v)
 
-takeWhile :: () => (a -> Bool) -> Vec a n -> Sigma (Vec a)
+takeWhile :: (a -> Bool) -> Vec a n -> Sigma (Vec a)
 {-# INLINE takeWhile #-}
 takeWhile f (Vec v) = tightenSigma (G.takeWhile f v)
 
-dropWhile :: () => (a -> Bool) -> Vec a n -> Sigma (Vec a)
+dropWhile :: (a -> Bool) -> Vec a n -> Sigma (Vec a)
 {-# INLINE dropWhile #-}
 dropWhile f (Vec v) = tightenSigma (G.dropWhile f v)
 
-partition :: () => (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
+partition :: (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
 {-# INLINE partition #-}
 partition f (Vec v) = tightenSigma2 (G.partition f v)
 
-unstabelPartition :: () => (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
+unstabelPartition :: (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
 {-# INLINE unstabelPartition #-}
 unstabelPartition f (Vec v) = tightenSigma2 (G.unstablePartition f v)
 
-span :: () => (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
+span :: (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
 {-# INLINE span #-}
 span f (Vec v) = tightenSigma2 (G.span f v)
 
-break :: () => (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
+break :: (a -> Bool) -> Vec a n -> (Sigma (Vec a), Sigma (Vec a))
 {-# INLINE break #-}
 break f (Vec v) = tightenSigma2 (G.break f v)
 
@@ -468,15 +468,15 @@ notElem :: (Eq a) => a -> Vec a n -> Bool
 {-# INLINE notElem #-}
 notElem x (Vec v) = G.notElem x v
 
-find :: () => (a -> Bool) -> Vec a n -> Maybe a
+find :: (a -> Bool) -> Vec a n -> Maybe a
 {-# INLINE find #-}
 find f (Vec v) = G.find f v
 
-findIndex :: () => (a -> Bool) -> Vec a n -> Maybe (Fin n)
+findIndex :: (a -> Bool) -> Vec a n -> Maybe (Fin n)
 {-# INLINE findIndex #-}
 findIndex f (Vec v) = G.findIndex f v
 
-findIndices :: () => (a -> Bool) -> Vec a n -> Sigma (Vec (Fin n))
+findIndices :: (a -> Bool) -> Vec a n -> Sigma (Vec (Fin n))
 {-# INLINE findIndices #-}
 findIndices f (Vec v) = tightenSigma (G.findIndices f v)
 
@@ -488,99 +488,99 @@ elemIndices :: (Eq a) => a -> Vec a n -> Sigma (Vec (Fin n))
 {-# INLINE elemIndices #-}
 elemIndices x (Vec v) = tightenSigma (G.elemIndices x v)
 
-foldl :: () => (a -> b -> a) -> a -> Vec b n -> a
+foldl :: (a -> b -> a) -> a -> Vec b n -> a
 {-# INLINE foldl #-}
 foldl f x (Vec v) = G.foldl f x v
 
-foldl1 :: () => (a -> a -> a) -> Vec a ('S n) -> a
+foldl1 :: (a -> a -> a) -> Vec a ('S n) -> a
 {-# INLINE foldl1 #-}
 foldl1 f (Vec v) = G.foldl1 f v
 
-foldl' :: () => (a -> b -> a) -> a -> Vec b n -> a
+foldl' :: (a -> b -> a) -> a -> Vec b n -> a
 {-# INLINE foldl' #-}
 foldl' f x (Vec v) = G.foldl' f x v
 
-foldl1' :: () => (a -> a -> a) -> Vec a ('S n) -> a
+foldl1' :: (a -> a -> a) -> Vec a ('S n) -> a
 {-# INLINE foldl1' #-}
 foldl1' f (Vec v) = G.foldl1' f v
 
-foldlD :: () => (a l -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
+foldlD :: (a l -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
 {-# INLINE foldlD #-}
 foldlD f x (Vec v) = G.foldlD f x v
 
-foldlD' :: () => (a l -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
+foldlD' :: (a l -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
 {-# INLINE foldlD' #-}
 foldlD' f x (Vec v) = G.foldlD' f x v
 
-foldr :: () => (a -> b -> b) -> b -> Vec a n -> b
+foldr :: (a -> b -> b) -> b -> Vec a n -> b
 {-# INLINE foldr #-}
 foldr f x (Vec v) = G.foldr f x v
 
-foldr1 :: () => (a -> a -> a) -> Vec a ('S n) -> a
+foldr1 :: (a -> a -> a) -> Vec a ('S n) -> a
 {-# INLINE foldr1 #-}
 foldr1 f (Vec v) = G.foldr1 f v
 
-foldr' :: () => (a -> b -> b) -> b -> Vec a n -> b
+foldr' :: (a -> b -> b) -> b -> Vec a n -> b
 {-# INLINE foldr' #-}
 foldr' f x (Vec v) = G.foldr' f x v
 
-foldr1' :: () => (a -> a -> a) -> Vec a ('S n) -> a
+foldr1' :: (a -> a -> a) -> Vec a ('S n) -> a
 {-# INLINE foldr1' #-}
 foldr1' f (Vec v) = G.foldr1' f v
 
-foldrD :: () => (a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
+foldrD :: (a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
 {-# INLINE foldrD #-}
 foldrD f x (Vec v) = G.foldrD f x v
 
-foldrD' :: () => (a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
+foldrD' :: (a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
 {-# INLINE foldrD' #-}
 foldrD' f x (Vec v) = G.foldrD' f x v
 
-ifoldl :: () => (a -> Fin n -> b -> a) -> a -> Vec b n -> a
+ifoldl :: (a -> Fin n -> b -> a) -> a -> Vec b n -> a
 {-# INLINE ifoldl #-}
 ifoldl f x (Vec v) = G.ifoldl f x v
 
-ifoldl' :: () => (a -> Fin n -> b -> a) -> a -> Vec b n -> a
+ifoldl' :: (a -> Fin n -> b -> a) -> a -> Vec b n -> a
 {-# INLINE ifoldl' #-}
 ifoldl' f x (Vec v) = G.ifoldl' f x v
 
-ifoldlD :: () => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
+ifoldlD :: (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
 {-# INLINE ifoldlD #-}
 ifoldlD f x (Vec v) = G.ifoldlD f x v
 
-ifoldlD' :: () => (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
+ifoldlD' :: (a l -> Fin n -> b -> a ('S l)) -> a 'Z -> Vec b n -> a n
 {-# INLINE ifoldlD' #-}
 ifoldlD' f x (Vec v) = G.ifoldlD' f x v
 
-ifoldr :: () => (Fin n -> a -> b -> b) -> b -> Vec a n -> b
+ifoldr :: (Fin n -> a -> b -> b) -> b -> Vec a n -> b
 {-# INLINE ifoldr #-}
 ifoldr f x (Vec v) = G.ifoldr f x v
 
-ifoldr' :: () => (Fin n -> a -> b -> b) -> b -> Vec a n -> b
+ifoldr' :: (Fin n -> a -> b -> b) -> b -> Vec a n -> b
 {-# INLINE ifoldr' #-}
 ifoldr' f x (Vec v) = G.ifoldr' f x v
 
-ifoldrD :: () => (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
+ifoldrD :: (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
 {-# INLINE ifoldrD #-}
 ifoldrD f x (Vec v) = G.ifoldrD f x v
 
-ifoldrD' :: () => (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
+ifoldrD' :: (Fin n -> a -> b l -> b ('S l)) -> b 'Z -> Vec a n -> b n
 {-# INLINE ifoldrD' #-}
 ifoldrD' f x (Vec v) = G.ifoldrD' f x v
 
-all :: () => (a -> Bool) -> Vec a n -> Bool
+all :: (a -> Bool) -> Vec a n -> Bool
 {-# INLINE all #-}
 all p (Vec v) = G.all p v
 
-any :: () => (a -> Bool) -> Vec a n -> Bool
+any :: (a -> Bool) -> Vec a n -> Bool
 {-# INLINE any #-}
 any p (Vec v) = G.any p v
 
-and :: () => Vec Bool n -> Bool
+and :: Vec Bool n -> Bool
 {-# INLINE and #-}
 and (Vec v) = G.and v
 
-or :: () => Vec Bool n -> Bool
+or :: Vec Bool n -> Bool
 {-# INLINE or #-}
 or (Vec v) = G.or v
 
@@ -596,7 +596,7 @@ maximum :: (Ord a) => Vec a ('S n) -> a
 {-# INLINE maximum #-}
 maximum (Vec v) = G.maximum v
 
-maximumBy :: () => (a -> a -> Ordering) -> Vec a ('S n) -> a
+maximumBy :: (a -> a -> Ordering) -> Vec a ('S n) -> a
 {-# INLINE maximumBy #-}
 maximumBy c (Vec v) = G.maximumBy c v
 
@@ -604,7 +604,7 @@ minimum :: (Ord a) => Vec a ('S n) -> a
 {-# INLINE minimum #-}
 minimum (Vec v) = G.minimum v
 
-minimumBy :: () => (a -> a -> Ordering) -> Vec a ('S n) -> a
+minimumBy :: (a -> a -> Ordering) -> Vec a ('S n) -> a
 {-# INLINE minimumBy #-}
 minimumBy c (Vec v) = G.minimumBy c v
 
@@ -612,7 +612,7 @@ minIndex :: (Ord a) => Vec a ('S n) -> Fin ('S n)
 {-# INLINE minIndex #-}
 minIndex (Vec v) = G.minIndex v
 
-minIndexBy :: () => (a -> a -> Ordering) -> Vec a ('S n) -> Fin ('S n)
+minIndexBy :: (a -> a -> Ordering) -> Vec a ('S n) -> Fin ('S n)
 {-# INLINE minIndexBy #-}
 minIndexBy c (Vec v) = G.minIndexBy c v
 
@@ -620,7 +620,7 @@ maxIndex :: (Ord a) => Vec a ('S n) -> Fin ('S n)
 {-# INLINE maxIndex #-}
 maxIndex (Vec v) = G.maxIndex v
 
-maxIndexBy :: () => (a -> a -> Ordering) -> Vec a ('S n) -> Fin ('S n)
+maxIndexBy :: (a -> a -> Ordering) -> Vec a ('S n) -> Fin ('S n)
 {-# INLINE maxIndexBy #-}
 maxIndexBy c (Vec v) = G.maxIndexBy c v
 
@@ -632,15 +632,15 @@ sequence_ :: (Monad m) => Vec (m a) n -> m ()
 {-# INLINE sequence_ #-}
 sequence_ (Vec v) = G.sequence_ v
 
-toList :: () => Vec a n -> [a]
+toList :: Vec a n -> [a]
 {-# INLINE toList #-}
 toList (Vec v) = G.toList v
 
-fromList :: () => [a] -> Sigma (Vec a)
+fromList :: [a] -> Sigma (Vec a)
 {-# INLINE fromList #-}
 fromList list = tightenSigma (G.fromList list)
 
-fromListN :: () => SNat n -> [a] -> Maybe (Vec a n)
+fromListN :: SNat n -> [a] -> Maybe (Vec a n)
 {-# INLINE fromListN #-}
 fromListN len list = tightenMaybe (G.fromListN len list)
 
@@ -656,7 +656,7 @@ fromVector :: V.Vector a -> Sigma (Vec a)
 {-# INLINE fromVector #-}
 fromVector v = tightenSigma (G.fromVector v)
 
-fromVectorN :: () => SNat n -> V.Vector a -> Maybe (Vec a n)
+fromVectorN :: SNat n -> V.Vector a -> Maybe (Vec a n)
 {-# INLINE fromVectorN #-}
 fromVectorN len v = coerce (G.fromVectorN len v)
 

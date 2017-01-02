@@ -7,21 +7,161 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wall -Werror #-}
-module Data.Vector.Generic.Sized where
+module Data.Vector.Generic.Sized (
+  -- * Accessors
+
+  -- ** Length information
+  length, null,
+
+  -- ** Indexing
+  (!), head, last,
+
+  -- ** Monadic indexing
+  indexM, headM, lastM,
+
+  -- ** Extracting subvectors (slicing)
+  slice, init, tail, take, drop, splitAt,
+
+  -- * Construction
+
+  -- ** Initialisation
+  empty, singleton, replicate, replicate',
+  generate, generate', iterate, iterate',
+
+  -- ** Monadic initialisation
+  replicateM, replicateM', generateM, generateM', -- create,
+
+  -- ** Unfolding
+  unfoldr, unfoldrN,
+  construct, construct', constructr, constructr',
+
+  -- ** Enumeration
+  enumFromN, enumFromN', enumFromStepN, enumFromStepN',
+
+  -- ** Concatenation
+  cons, snoc, (++), concat, diagonal,
+
+  -- ** Restricting memory usage
+  force,
+
+  -- * Modifying vectors
+
+  -- ** Bulk updates
+  (//), update, update_,
+
+  -- ** Accumulations
+  accum, accumulate, accumulate_,
+
+  -- ** Permutations
+  reverse, backpermute,
+
+  -- ** Safe destructive updates
+  -- modify,
+
+  -- * Elementwise operations
+
+  -- ** Indexing
+  indexed, allFin, allFin',
+
+  -- ** Mapping
+  map, imap, concatMap,
+
+  -- ** Monadic mapping
+  mapM, imapM, mapM_, imapM_, forM, forM_,
+
+  -- ** Zipping
+  zipWith, zipWith3, zipWith4, zipWith5, zipWith6,
+  izipWith, izipWith3, izipWith4, izipWith5, izipWith6,
+  zip, zip3, zip4, zip5, zip6,
+
+  -- ** Monadic zipping
+  zipWithM, izipWithM, zipWithM_, izipWithM_,
+
+  -- ** Unzipping
+  unzip, unzip3, unzip4, unzip5, unzip6,
+
+  -- * Working with predicates
+
+  -- ** Filtering
+  filter, ifilter, filterM,
+  takeWhile, dropWhile,
+
+  -- ** Partitioning
+  partition, unstablePartition, span, break,
+
+  -- ** Searching
+  elem, notElem, find, findIndex, findIndices, elemIndex, elemIndices,
+
+  -- * Folding
+  foldl, foldl1, foldl', foldl1', foldlD, foldlD',
+  foldr, foldr1, foldr', foldr1', foldrD, foldrD',
+  ifoldl, ifoldl', ifoldlD, ifoldlD',
+  ifoldr, ifoldr', ifoldrD, ifoldrD',
+
+  -- ** Specialised folds
+  all, any, and, or,
+  sum, product,
+  maximum, maximumBy, minimum, minimumBy,
+  minIndex, minIndexBy, maxIndex, maxIndexBy,
+
+  -- ** Monadic folds
+  foldM, ifoldM, foldM', ifoldM',
+  fold1M, fold1M', foldM_, ifoldM_,
+  foldM'_, ifoldM'_, fold1M_, fold1M'_,
+  foldMD, foldMD', ifoldMD, ifoldMD',
+
+  -- ** Monadic sequencing
+  sequence, sequence_,
+
+  -- * Prefix sums (scans)
+  prescanl, prescanl',
+  postscanl, postscanl',
+  scanl, scanl', scanl1, scanl1',
+  prescanr, prescanr',
+  postscanr, postscanr',
+  scanr, scanr', scanr1, scanr1',
+
+  -- * Conversions
+
+  -- ** Lists
+  toList, fromList, fromListN, fromListN',
+
+  -- ** Different vector types
+  convert, toVector, fromVector, fromVectorN, fromVectorN',
+
+  -- ** Mutable vectors
+  -- freeze, thaw, copy, unsafeFreeze, unsafeThaw, unsafeCopy,
+
+  -- * Fusion support
+
+  -- ** Conversion to/from Bundles
+  stream, unstream, streamR, unstreamR,
+
+  -- ** Recycling support
+  -- new, clone,
+
+  -- * Utilities
+
+  -- ** Comparisons
+  eq, cmp,
+
+  -- ** Show and Read
+  showsPrec
+) where
 
 import Prelude (Maybe(..),otherwise,Functor(..),
                 Monad,Num(..),(.),id,Int,Eq(..),
-                Bool,Ord(..),Ordering,Show(..),ShowS)
+                Bool,Ord(..),Ordering,Show,ShowS)
 import Data.Vector.Generic (Vector)
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Fusion.Bundle as B
 
 import Data.Sigma (Sigma(..))
-import Data.Vector.Generic.Internal.Sized (Vec(..))
 import Data.Bifunctor (bimap)
+import Data.Vector.Generic.Internal.Sized (Vec(..))
 
-import Data.Nat.Internal
-import Data.Nat
+import Data.Nat.Internal (SNat(..),Fin(..))
+import Data.Nat (Nat(..),IsNat(..),type (+),type (*),type Min,IsZero(..))
 
 import Data.Coerce (coerce)
 import Unsafe.Coerce (unsafeCoerce)
@@ -87,6 +227,9 @@ take (SNat amount) (Vec v) = Vec (G.unsafeTake amount v)
 drop :: (Vector v a) => SNat i -> Vec v a (i + n) -> Vec v a n
 {-# INLINE drop #-}
 drop (SNat amount) (Vec v) = Vec (G.unsafeDrop amount v)
+
+splitAt :: (Vector v a) => SNat i -> Vec v a (i + n) -> (Vec v a i, Vec v a n)
+splitAt (SNat amount) (Vec v) = coerce (G.splitAt amount v)
 
 empty :: (Vector v a) => Vec v a 'Z
 {-# INLINE empty #-}
@@ -381,6 +524,26 @@ unzip :: (Vector v a, Vector v b, Vector v (a, b)) =>
 unzip (Vec vs) = (Vec as, Vec bs)
   where (as, bs) = G.unzip vs
 
+zipWithM :: (Vector v a, Vector v b, Vector v c, Monad m) =>
+  (a -> b -> m c) -> Vec v a n -> Vec v b n -> m (Vec v c n)
+{-# INLINE zipWithM #-}
+zipWithM f (Vec as) (Vec bs) = fmap Vec (G.zipWithM f as bs)
+
+izipWithM :: (Vector v a, Vector v b, Vector v c, Monad m) =>
+  (Fin n -> a -> b -> m c) -> Vec v a n -> Vec v b n -> m (Vec v c n)
+{-# INLINE izipWithM #-}
+izipWithM f (Vec as) (Vec bs) = fmap Vec (G.izipWithM (coerce f) as bs)
+
+zipWithM_ :: (Vector v a, Vector v b, Monad m) =>
+  (a -> b -> m c) -> Vec v a n -> Vec v b n -> m ()
+{-# INLINE zipWithM_ #-}
+zipWithM_ f (Vec as) (Vec bs) = G.zipWithM_ f as bs
+
+izipWithM_ :: (Vector v a, Vector v b, Monad m) =>
+  (Fin n -> a -> b -> m c) -> Vec v a n -> Vec v b n -> m ()
+{-# INLINE izipWithM_ #-}
+izipWithM_ f (Vec as) (Vec bs) = G.izipWithM_ (unsafeCoerce f) as bs
+
 unzip3 :: (Vector v a, Vector v b, Vector v c, Vector v (a, b, c)) =>
   Vec v (a, b, c) n -> (Vec v a n, Vec v b n, Vec v c n)
 {-# INLINE unzip3 #-}
@@ -651,6 +814,10 @@ ifoldM'_ f x (Vec v) = G.ifoldM'_ (coerce f) x v
 fold1M_ :: (Vector v a, Monad m) => (a -> a -> m a) -> Vec v a ('S n) -> m ()
 {-# INLINE fold1M_ #-}
 fold1M_ f (Vec v) = G.fold1M_ f v
+
+fold1M'_ :: (Vector v a, Monad m) => (a -> a -> m a) -> Vec v a ('S n) -> m ()
+{-# INLINE fold1M'_ #-}
+fold1M'_ f (Vec v) = G.fold1M'_ f v
 
 foldMD :: (Vector v b, Monad m) => (a l -> b -> a ('S l)) -> a 'Z -> Vec v b n -> m (a n)
 {-# INLINE foldMD #-}

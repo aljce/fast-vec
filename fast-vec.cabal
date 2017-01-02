@@ -16,11 +16,14 @@ library
   exposed-modules:     Data.Sigma
                      , Data.Vector.Generic.Internal.Sized
                      , Data.Vector.Generic.Sized
+                     , Data.Vector.Generic.Mutable.Sized
                      , Data.Vector.Unboxed.Instances
                      , Data.Vector.Unboxed.Sized
+                     , Data.Vector.Storable.Sized
                      , Data.Vector.Sized
   build-depends:       base >=4.9 && <4.10
                      , fast-nats >= 0.1 && < 0.2
                      , vector > 0.11 && < 0.12
+                     , primitive >= 0.5.0.1 && < 0.6.2
   hs-source-dirs:      src
   default-language:    Haskell2010

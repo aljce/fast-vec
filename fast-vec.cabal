@@ -22,7 +22,8 @@ library
                      , Data.Vector.Storable.Sized
                      , Data.Vector.Sized
   build-depends:       base >=4.9 && <4.10
-                     , fast-nats >= 0.1 && < 0.2
+                     , fast-nats >= 0.2 && < 0.3
+                     , singletons >= 2.2 && < 2.3
                      , vector > 0.11 && < 0.12
                      , primitive >= 0.5.0.1 && < 0.6.2
   hs-source-dirs:      src

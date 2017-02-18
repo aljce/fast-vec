@@ -17,6 +17,7 @@ library
                      , Data.Vector.Generic.Internal.Sized
                      , Data.Vector.Generic.Sized
                      , Data.Vector.Generic.Mutable.Sized
+                     , Data.Vector.Generic.New.Sized
                      , Data.Vector.Unboxed.Instances
                      , Data.Vector.Unboxed.Sized
                      , Data.Vector.Storable.Sized

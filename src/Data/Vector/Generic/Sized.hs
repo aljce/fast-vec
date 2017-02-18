@@ -8,6 +8,8 @@
 
 {-# OPTIONS_GHC -Wall -Werror -Wno-unticked-promoted-constructors #-}
 module Data.Vector.Generic.Sized (
+  -- * Immutable vectors
+  Vec,
   -- :* Accessors
 
   -- ** Length information
@@ -56,7 +58,7 @@ module Data.Vector.Generic.Sized (
   reverse, backpermute,
 
   -- ** Safe destructive updates
-  -- modify,
+  modify,
 
   -- :* Elementwise operations
 
@@ -130,7 +132,7 @@ module Data.Vector.Generic.Sized (
   convert, toVector, fromVector, fromVectorN, fromVectorN',
 
   -- ** Mutable vectors
-  -- freeze, thaw, copy, unsafeFreeze, unsafeThaw, unsafeCopy,
+  freeze, thaw, copy, unsafeFreeze, unsafeThaw,
 
   -- :* Fusion support
 
@@ -138,18 +140,18 @@ module Data.Vector.Generic.Sized (
   stream, unstream, streamR, unstreamR,
 
   -- ** Recycling support
-  -- new, clone,
+  new, clone,
 
   -- :* Utilities
 
   -- ** Comparisons
   eq, cmp,
 
-  -- ** Show and Read
+  -- ** Show
   showsPrec
 ) where
 
-import Prelude (Maybe(..),otherwise,Functor(..),
+import Prelude (Maybe(..),otherwise,Functor(..),   
                 Monad,Num(..),(.),id,Int,Eq(..),
                 Bool,Ord(..),Ordering,Show,ShowS)
 import Data.Vector.Generic (Vector)
@@ -158,7 +160,10 @@ import qualified Data.Vector.Fusion.Bundle as B
 
 import Data.Sigma (Sigma(..))
 import Data.Bifunctor (bimap)
-import Data.Vector.Generic.Internal.Sized (Vec(..))
+import Data.Vector.Generic.Internal.Sized (Vec(..),MVec(..),New(..),strengthenVecM,strengthenMVecM)
+import qualified Data.Vector.Generic.New.Sized as New (modify)
+import Control.Monad.ST (ST)
+import Control.Monad.Primitive (PrimMonad(..))
 
 import Data.Coerce (coerce)
 import Unsafe.Coerce (unsafeCoerce)
@@ -392,7 +397,9 @@ backpermute :: forall n m v a. (Vector v a, Vector v Int) =>
 {-# INLINE backpermute #-}
 backpermute (Vec v) (Vec w) = Vec (G.unsafeBackpermute v (unBounds w))
 
--- modify
+modify :: Vector v a => (forall s. MVec (G.Mutable v) s a n -> ST s ()) -> Vec v a n -> Vec v a n
+{-# INLINE modify #-}
+modify p = new . New.modify p . clone
 
 indexed :: forall n v a. (Vector v a, Vector v (Int, a)) =>
   Vec v a n -> Vec v (Bound n, a) n
@@ -954,6 +961,26 @@ convert :: (Vector v a, Vector w a) => Vec v a n -> Vec w a n
 {-# INLINE convert #-}
 convert (Vec v) = Vec (G.convert v)
 
+freeze :: (Vector v a, PrimMonad m) => MVec (G.Mutable v) (PrimState m) a n -> m (Vec v a n)
+{-# INLINE freeze #-}
+freeze (MVec mv) = strengthenVecM (G.freeze mv)
+
+thaw :: (Vector v a, PrimMonad m) => Vec v a n -> m (MVec (G.Mutable v) (PrimState m) a n)
+{-# INLINE thaw #-}
+thaw (Vec v) = strengthenMVecM (G.thaw v)
+
+copy :: (Vector v a, PrimMonad m) => MVec (G.Mutable v) (PrimState m) a n -> Vec v a n -> m ()
+{-# INLINE copy #-}
+copy (MVec mv) (Vec v) = G.unsafeCopy mv v
+
+unsafeFreeze :: (Vector v a, PrimMonad m) => MVec (G.Mutable v) (PrimState m) a n -> m (Vec v a n)
+{-# INLINE unsafeFreeze #-}
+unsafeFreeze (MVec mv) = strengthenVecM (G.unsafeFreeze mv)
+
+unsafeThaw :: (Vector v a, PrimMonad m) => Vec v a n -> m (MVec (G.Mutable v) (PrimState m) a n)
+{-# INLINE unsafeThaw #-}
+unsafeThaw (Vec v) = strengthenMVecM (G.unsafeThaw v)
+
 stream :: (Vector v a) => Vec v a n -> B.Bundle v a
 {-# INLINE stream #-}
 stream (Vec v) = G.stream v
@@ -969,6 +996,13 @@ streamR (Vec v) = G.streamR v
 unstreamR :: (Vector v a) => B.Bundle v a -> Sigma Nat (TyCon1 (Vec v a))
 {-# INLINE unstreamR #-}
 unstreamR b = fromVector (G.unstreamR b)
+
+new :: (Vector v a) => New v a n -> Vec v a n
+{-# INLINE new #-}
+new (New n) = Vec (G.new n)
+
+clone :: (Vector v a) => Vec v a n -> New v a n
+clone (Vec v) = New (G.clone v)
 
 eq :: (Vector v a, Eq a) => Vec v a n -> Vec v a n -> Bool
 {-# INLINE eq #-}
